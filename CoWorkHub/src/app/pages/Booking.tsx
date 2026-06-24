@@ -8,306 +8,98 @@ import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Separator } from "../components/ui/separator";
-import { Calendar, Clock, Users, CreditCard, CheckCircle } from "lucide-react";
-import { mockWorkspaces } from "../data/mockData";
+import { Calendar, CreditCard } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { toast } from "sonner";
+import { useWorkspace } from "../../hooks/useWorkspaces";
+import { useBookings } from "../../hooks/useBookings";
 
 export function Booking() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const workspace = mockWorkspaces.find((w) => w.id === id);
+  const { workspace, loading } = useWorkspace(id ?? "");
+  const { createBooking } = useBookings();
 
-  const [date, setDate] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [seats, setSeats] = useState("1");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardName, setCardName] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [cvv, setCvv] = useState("");
+  const [date,s,e,seats] = [useState(""), useState(""), useState(""), useState("1")];
+  const [cardName, setCardName]   = useState("");
+  const [cardNum,  setCardNum]    = useState("");
+  const [expiry,   setExpiry]     = useState("");
+  const [cvv,      setCvv]        = useState("");
+  const [busy,     setBusy]       = useState(false);
 
-  if (!workspace) {
-    return null;
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" /></div>;
+  if (!workspace) return <div className="min-h-screen flex items-center justify-center"><p>Workspace not found.</p></div>;
 
-  const serviceFee = 5;
-  const total = workspace.pricePerDay + serviceFee;
+  const total = workspace.price_per_day + 5;
 
-  const handleConfirmBooking = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Show success toast
-    toast.success("Booking confirmed!", {
-      description: "Your workspace has been successfully booked.",
-    });
-
-    // Navigate to user dashboard after a short delay
-    setTimeout(() => {
-      navigate("/dashboard");
-    }, 1500);
+  const handleSubmit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!date[0] || !s[0] || !e[0]) { toast.error("Fill in all booking details"); return; }
+    setBusy(true);
+    const { error } = await createBooking({ workspaceId: workspace.id, date: date[0], startTime: s[0], endTime: e[0], seats: parseInt(seats[0]), totalPrice: total });
+    setBusy(false);
+    if (error) toast.error("Booking failed", { description: error });
+    else { toast.success("Booking confirmed!"); setTimeout(() => navigate("/dashboard"), 1200); }
   };
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-
-      <div className="bg-gray-50 py-8">
-        <div className="container mx-auto px-4">
-          <h1 className="mb-2">Complete Your Booking</h1>
-          <p className="text-muted-foreground">Review details and confirm your reservation</p>
-        </div>
-      </div>
-
-      <form onSubmit={handleConfirmBooking} className="container mx-auto px-4 py-8 flex-1">
+      <main className="flex-1 container mx-auto px-4 py-8 max-w-5xl">
+        <h1 className="text-3xl font-bold mb-8">Complete Your Booking</h1>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Booking Form */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Booking Details */}
+          <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Booking Details</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5" />Booking Details</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="date">
-                    <Calendar className="h-4 w-4 inline mr-2" />
-                    Date
-                  </Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    required
-                  />
-                </div>
-
+                <div className="space-y-2"><Label>Date</Label><Input type="date" required min={new Date().toISOString().split("T")[0]} value={date[0]} onChange={e => date[1](e.target.value)} /></div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="start-time">
-                      <Clock className="h-4 w-4 inline mr-2" />
-                      Start Time
-                    </Label>
-                    <Select value={startTime} onValueChange={setStartTime} required>
-                      <SelectTrigger id="start-time">
-                        <SelectValue placeholder="Select time" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="08:00">08:00 AM</SelectItem>
-                        <SelectItem value="09:00">09:00 AM</SelectItem>
-                        <SelectItem value="10:00">10:00 AM</SelectItem>
-                        <SelectItem value="11:00">11:00 AM</SelectItem>
-                        <SelectItem value="12:00">12:00 PM</SelectItem>
-                        <SelectItem value="13:00">01:00 PM</SelectItem>
-                        <SelectItem value="14:00">02:00 PM</SelectItem>
-                        <SelectItem value="15:00">03:00 PM</SelectItem>
-                        <SelectItem value="16:00">04:00 PM</SelectItem>
-                        <SelectItem value="17:00">05:00 PM</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="end-time">End Time</Label>
-                    <Select value={endTime} onValueChange={setEndTime} required>
-                      <SelectTrigger id="end-time">
-                        <SelectValue placeholder="Select time" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="09:00">09:00 AM</SelectItem>
-                        <SelectItem value="10:00">10:00 AM</SelectItem>
-                        <SelectItem value="11:00">11:00 AM</SelectItem>
-                        <SelectItem value="12:00">12:00 PM</SelectItem>
-                        <SelectItem value="13:00">01:00 PM</SelectItem>
-                        <SelectItem value="14:00">02:00 PM</SelectItem>
-                        <SelectItem value="15:00">03:00 PM</SelectItem>
-                        <SelectItem value="16:00">04:00 PM</SelectItem>
-                        <SelectItem value="17:00">05:00 PM</SelectItem>
-                        <SelectItem value="18:00">06:00 PM</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {[["Start", s],["End", e]].map(([label, state]) => (
+                    <div key={label as string} className="space-y-2"><Label>{label as string} Time</Label>
+                      <Select value={(state as typeof s)[0]} onValueChange={(state as typeof s)[1]}>
+                        <SelectTrigger><SelectValue placeholder="Select time" /></SelectTrigger>
+                        <SelectContent>{["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"].map(t=><SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  ))}
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="seats">
-                    <Users className="h-4 w-4 inline mr-2" />
-                    Number of Seats
-                  </Label>
-                  <Input
-                    id="seats"
-                    type="number"
-                    min="1"
-                    max={workspace.capacity}
-                    value={seats}
-                    onChange={(e) => setSeats(e.target.value)}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Maximum capacity: {workspace.capacity} people
-                  </p>
+                <div className="space-y-2"><Label>Seats</Label>
+                  <Select value={seats[0]} onValueChange={seats[1]}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{Array.from({length:Math.min(workspace.capacity,10)},(_,i)=>i+1).map(n=><SelectItem key={n} value={String(n)}>{n} {n===1?"seat":"seats"}</SelectItem>)}</SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>
-
-            {/* Payment Details */}
             <Card>
-              <CardHeader>
-                <CardTitle>
-                  <CreditCard className="h-5 w-5 inline mr-2" />
-                  Payment Information
-                </CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" />Payment</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="card-number">Card Number</Label>
-                  <Input
-                    id="card-number"
-                    type="text"
-                    placeholder="1234 5678 9012 3456"
-                    value={cardNumber}
-                    onChange={(e) => setCardNumber(e.target.value)}
-                    maxLength={19}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="card-name">Cardholder Name</Label>
-                  <Input
-                    id="card-name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={cardName}
-                    onChange={(e) => setCardName(e.target.value)}
-                    required
-                  />
-                </div>
-
+                <div className="space-y-2"><Label>Name on Card</Label><Input required value={cardName} onChange={e=>setCardName(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Card Number</Label><Input required placeholder="1234 5678 9012 3456" value={cardNum} onChange={e=>setCardNum(e.target.value)} /></div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="expiry">Expiry Date</Label>
-                    <Input
-                      id="expiry"
-                      type="text"
-                      placeholder="MM/YY"
-                      value={expiryDate}
-                      onChange={(e) => setExpiryDate(e.target.value)}
-                      maxLength={5}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="cvv">CVV</Label>
-                    <Input
-                      id="cvv"
-                      type="text"
-                      placeholder="123"
-                      value={cvv}
-                      onChange={(e) => setCvv(e.target.value)}
-                      maxLength={4}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-secondary mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-medium mb-1">Secure Payment</p>
-                      <p className="text-muted-foreground">
-                        Your payment information is encrypted and secure
-                      </p>
-                    </div>
-                  </div>
+                  <div className="space-y-2"><Label>Expiry</Label><Input placeholder="MM/YY" required value={expiry} onChange={e=>setExpiry(e.target.value)} /></div>
+                  <div className="space-y-2"><Label>CVV</Label><Input placeholder="123" required value={cvv} onChange={e=>setCvv(e.target.value)} /></div>
                 </div>
               </CardContent>
             </Card>
-          </div>
-
-          {/* Booking Summary */}
-          <div className="lg:col-span-1">
-            <Card className="sticky top-20">
-              <CardHeader>
-                <CardTitle>Booking Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-4">
-                  <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
-                    <ImageWithFallback
-                      src={workspace.image}
-                      alt={workspace.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="mb-1 truncate">{workspace.name}</h4>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {workspace.location}
-                    </p>
-                  </div>
-                </div>
-
+            <Button type="submit" className="w-full" size="lg" disabled={busy}>{busy ? "Processing…" : `Confirm & Pay $${total}`}</Button>
+          </form>
+          <Card>
+            <CardHeader><CardTitle>Summary</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-lg overflow-hidden h-40"><ImageWithFallback src={workspace.image} alt={workspace.name} className="w-full h-full object-cover" /></div>
+              <div><h3 className="font-semibold">{workspace.name}</h3><p className="text-sm text-muted-foreground">{workspace.location}</p></div>
+              <Separator />
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">Workspace fee</span><span>${workspace.price_per_day}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Service fee</span><span>$5</span></div>
                 <Separator />
-
-                <div className="space-y-3">
-                  {date && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Date</span>
-                      <span>{new Date(date).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                  {startTime && endTime && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Time</span>
-                      <span>{startTime} - {endTime}</span>
-                    </div>
-                  )}
-                  {seats && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Seats</span>
-                      <span>{seats} {parseInt(seats) === 1 ? 'person' : 'people'}</span>
-                    </div>
-                  )}
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Workspace fee</span>
-                    <span>${workspace.pricePerDay}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Service fee</span>
-                    <span>${serviceFee}</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="font-semibold">Total</span>
-                    <span className="font-semibold text-primary text-xl">
-                      ${total}
-                    </span>
-                  </div>
-                </div>
-
-                <Button type="submit" className="w-full" size="lg">
-                  Confirm Booking
-                </Button>
-
-                <p className="text-xs text-center text-muted-foreground">
-                  By confirming, you agree to our cancellation policy
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+                <div className="flex justify-between font-semibold text-base"><span>Total</span><span>${total}</span></div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </form>
-
+      </main>
       <Footer />
     </div>
   );
