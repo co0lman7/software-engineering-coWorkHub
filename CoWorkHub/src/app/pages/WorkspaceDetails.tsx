@@ -7,7 +7,7 @@ import { Badge } from "../components/ui/badge";
 import { Card, CardContent } from "../components/ui/card";
 import { Calendar } from "../components/ui/calendar";
 import { MapPin, Users, Star, Wifi, Coffee, Clock, Phone, Printer, CheckCircle2, ArrowLeft } from "lucide-react";
-import { mockWorkspaces } from "../data/mockData";
+import { useWorkspace } from "../../hooks/useWorkspaces";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 
 export function WorkspaceDetails() {
@@ -16,7 +16,19 @@ export function WorkspaceDetails() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
-  const workspace = mockWorkspaces.find((w) => w.id === id);
+  const { workspace, loading } = useWorkspace(id ?? "");
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!workspace) {
     return (
@@ -150,7 +162,7 @@ export function WorkspaceDetails() {
                 <div className="mb-6">
                   <div className="flex items-baseline gap-2 mb-2">
                     <span className="text-3xl font-semibold text-primary">
-                      ${workspace.pricePerDay}
+                      ${workspace.price_per_day}
                     </span>
                     <span className="text-muted-foreground">/day</span>
                   </div>
@@ -176,7 +188,7 @@ export function WorkspaceDetails() {
                   <div className="space-y-2 pt-4 border-t">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Price per day</span>
-                      <span>${workspace.pricePerDay}</span>
+                      <span>${workspace.price_per_day}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Service fee</span>
@@ -185,7 +197,7 @@ export function WorkspaceDetails() {
                     <div className="flex justify-between pt-2 border-t">
                       <span className="font-semibold">Total</span>
                       <span className="font-semibold text-primary">
-                        ${workspace.pricePerDay + 5}
+                        ${workspace.price_per_day + 5}
                       </span>
                     </div>
                   </div>
