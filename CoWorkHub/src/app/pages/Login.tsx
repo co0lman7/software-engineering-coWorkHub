@@ -61,7 +61,7 @@ export function Login() {
                     <div className="space-y-2"><Label>Email</Label><Input type="email" required value={loginEmail} onChange={e => setLoginEmail(e.target.value)} /></div>
                     <div className="space-y-2"><Label>Password</Label><Input type="password" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} /></div>
                   </CardContent>
-                  <CardFooter><Button type="submit" className="w-full" disabled={busy}>{busy ? "Signing in…" : "Sign In"}</Button></CardFooter>
+                  <CardFooter><Button type="submit" className="w-full" disabled={busy}>{busy ? "Signing inâ€¦" : "Sign In"}</Button></CardFooter>
                 </form>
               </Card>
             </TabsContent>
@@ -74,7 +74,7 @@ export function Login() {
                     <div className="space-y-2"><Label>Email</Label><Input type="email" required value={regEmail} onChange={e => setRegEmail(e.target.value)} /></div>
                     <div className="space-y-2"><Label>Password</Label><Input type="password" required minLength={6} value={regPassword} onChange={e => setRegPassword(e.target.value)} /></div>
                   </CardContent>
-                  <CardFooter><Button type="submit" className="w-full" disabled={busy}>{busy ? "Creating…" : "Create Account"}</Button></CardFooter>
+                  <CardFooter><Button type="submit" className="w-full" disabled={busy}>{busy ? "Creatingâ€¦" : "Create Account"}</Button></CardFooter>
                 </form>
               </Card>
             </TabsContent>

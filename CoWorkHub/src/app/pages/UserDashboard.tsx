@@ -41,7 +41,7 @@ export function UserDashboard() {
           <div className="space-y-1 text-sm text-muted-foreground mb-3">
             <div className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{b.workspace.location}</div>
             <div className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{new Date(b.date).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}</div>
-            <div className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{b.start_time} – {b.end_time}</div>
+            <div className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{b.start_time} â€“ {b.end_time}</div>
           </div>
           <div className="flex items-center justify-between">
             <span className="font-semibold">${b.total_price}</span>
@@ -87,7 +87,7 @@ export function UserDashboard() {
             <TabsTrigger value="history">History ({completed.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="upcoming" className="space-y-4">
-            {loading && <p className="text-muted-foreground">Loading…</p>}
+            {loading && <p className="text-muted-foreground">Loadingâ€¦</p>}
             {!loading && upcoming.length === 0 && <Card><CardContent className="py-12 text-center text-muted-foreground">No upcoming bookings. <a href="/workspaces" className="text-primary hover:underline">Browse workspaces</a></CardContent></Card>}
             {upcoming.map(b => <BookingCard key={b.id} b={b} />)}
           </TabsContent>
