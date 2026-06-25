@@ -82,7 +82,7 @@ export function Booking() {
                 </div>
               </CardContent>
             </Card>
-            <Button type="submit" className="w-full" size="lg" disabled={busy}>{busy ? "Processing…" : `Confirm & Pay $${total}`}</Button>
+            <Button type="submit" className="w-full" size="lg" disabled={busy}>{busy ? "Processingâ€¦" : `Confirm & Pay $${total}`}</Button>
           </form>
           <Card>
             <CardHeader><CardTitle>Summary</CardTitle></CardHeader>
