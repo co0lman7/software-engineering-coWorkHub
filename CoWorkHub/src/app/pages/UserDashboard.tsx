@@ -40,7 +40,10 @@ export function UserDashboard() {
           </div>
           <div className="space-y-1 text-sm text-muted-foreground mb-3">
             <div className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{b.workspace.location}</div>
-            <div className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{new Date(b.date).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}</div>
+            <div className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />
+              {new Date(b.date).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}
+              {b.end_date && b.end_date !== b.date && ` – ${new Date(b.end_date).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}`}
+            </div>
             <div className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{b.start_time} – {b.end_time}</div>
           </div>
           <div className="flex items-center justify-between">

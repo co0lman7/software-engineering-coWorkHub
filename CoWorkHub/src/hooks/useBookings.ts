@@ -20,10 +20,10 @@ export function useBookings() {
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
 
-  const createBooking = async (p: { workspaceId: string; date: string; startTime: string; endTime: string; seats: number; totalPrice: number }) => {
+  const createBooking = async (p: { workspaceId: string; date: string; endDate: string; startTime: string; endTime: string; seats: number; totalPrice: number }) => {
     if (!user) return { error: "Not authenticated" };
     const { error } = await supabase.from("bookings").insert({
-      user_id: user.id, workspace_id: p.workspaceId, date: p.date,
+      user_id: user.id, workspace_id: p.workspaceId, date: p.date, end_date: p.endDate,
       start_time: p.startTime, end_time: p.endTime, seats: p.seats,
       total_price: p.totalPrice, status: "upcoming",
     });

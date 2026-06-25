@@ -11,7 +11,7 @@ export type Workspace = {
 };
 export type Booking = {
   id: string; user_id: string; workspace_id: string;
-  date: string; start_time: string; end_time: string;
+  date: string; end_date: string; start_time: string; end_time: string;
   seats: number; total_price: number;
   status: "upcoming" | "completed" | "cancelled"; created_at: string;
 };

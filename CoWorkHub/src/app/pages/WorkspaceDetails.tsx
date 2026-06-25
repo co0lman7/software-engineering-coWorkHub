@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router";
+import type { DateRange } from "react-day-picker";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { Button } from "../components/ui/button";
@@ -13,10 +14,20 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 export function WorkspaceDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   const { workspace, loading } = useWorkspace(id ?? "");
+
+  // Local YYYY-MM-DD (avoids the UTC off-by-one that toISOString() can cause).
+  const toISODate = (d?: Date) =>
+    d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : "";
+
+  // Inclusive day count: a single day = 1, a Mon–Wed range = 3.
+  const dayCount =
+    dateRange?.from && dateRange?.to
+      ? Math.round((dateRange.to.getTime() - dateRange.from.getTime()) / 86_400_000) + 1
+      : 1;
 
   if (loading) {
     return (
@@ -174,21 +185,34 @@ export function WorkspaceDetails() {
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm font-medium mb-2 block">
-                      Select Date
+                      Select Dates
                     </label>
                     <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      disabled={(date) => date < new Date()}
+                      mode="range"
+                      selected={dateRange}
+                      onSelect={setDateRange}
+                      disabled={(date) => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return date < today;
+                      }}
                       className="rounded-md border"
                     />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {dateRange?.from
+                        ? dateRange.to
+                          ? `${dateRange.from.toLocaleDateString()} – ${dateRange.to.toLocaleDateString()} (${dayCount} ${dayCount === 1 ? "day" : "days"})`
+                          : "Select an end date"
+                        : "Select a start date"}
+                    </p>
                   </div>
 
                   <div className="space-y-2 pt-4 border-t">
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Price per day</span>
-                      <span>${workspace.price_per_day}</span>
+                      <span className="text-muted-foreground">
+                        ${workspace.price_per_day} × {dayCount} {dayCount === 1 ? "day" : "days"}
+                      </span>
+                      <span>${workspace.price_per_day * dayCount}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Service fee</span>
@@ -197,16 +221,26 @@ export function WorkspaceDetails() {
                     <div className="flex justify-between pt-2 border-t">
                       <span className="font-semibold">Total</span>
                       <span className="font-semibold text-primary">
-                        ${workspace.price_per_day + 5}
+                        ${workspace.price_per_day * dayCount + 5}
                       </span>
                     </div>
                   </div>
 
-                  <Link to={`/booking/${workspace.id}`} className="block">
-                    <Button className="w-full" size="lg">
-                      Book Now
+                  {dateRange?.from ? (
+                    <Link
+                      to={`/booking/${workspace.id}`}
+                      state={{ from: toISODate(dateRange.from), to: toISODate(dateRange.to ?? dateRange.from) }}
+                      className="block"
+                    >
+                      <Button className="w-full" size="lg">
+                        Book Now
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button className="w-full" size="lg" disabled>
+                      Select dates to book
                     </Button>
-                  </Link>
+                  )}
 
                   <p className="text-xs text-center text-muted-foreground">
                     You won't be charged yet

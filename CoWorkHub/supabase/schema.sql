@@ -34,7 +34,7 @@ create policy "admin manage workspaces" on public.workspaces for all using (exis
 create table if not exists public.bookings (
   id uuid primary key default gen_random_uuid(), user_id uuid not null references public.profiles(id) on delete cascade,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
-  date date not null, start_time time not null, end_time time not null,
+  date date not null, end_date date not null, start_time time not null, end_time time not null,
   seats int not null default 1, total_price numeric(10,2) not null,
   status text not null default 'upcoming' check (status in ('upcoming','completed','cancelled')),
   created_at timestamptz not null default now()
