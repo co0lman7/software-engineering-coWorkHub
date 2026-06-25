@@ -1,16 +1,45 @@
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { Button } from "./ui/button";
-import { Building2, Menu, User, Zap } from "lucide-react";
+import { Building2, Menu, User, LogOut, LayoutDashboard } from "lucide-react";
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
 } from "./ui/sheet";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { useAuth } from "../../hooks/useAuth";
 
 export function Navbar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, profile, loading, signOut } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
+  const isAdmin = profile?.role === "admin";
+  const displayName = profile?.name || user?.email?.split("@")[0] || "Account";
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
+
+  const navLink = (to: string, label: string) => (
+    <Link
+      to={to}
+      className="px-4 py-2 rounded-lg text-sm transition-all"
+      style={{ color: isActive(to) ? '#3B82F6' : '#94A3B8', background: isActive(to) ? 'rgba(59,130,246,0.1)' : 'transparent' }}
+    >
+      {label}
+    </Link>
+  );
 
   return (
     <nav className="sticky top-0 z-50 border-b" style={{ background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(20px)', borderColor: 'rgba(148,163,184,0.12)' }}>
@@ -29,43 +58,54 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1">
-            <Link
-              to="/workspaces"
-              className="px-4 py-2 rounded-lg text-sm transition-all"
-              style={{ color: isActive('/workspaces') ? '#3B82F6' : '#94A3B8', background: isActive('/workspaces') ? 'rgba(59,130,246,0.1)' : 'transparent' }}
-            >
-              Browse Spaces
-            </Link>
-            <Link
-              to="/dashboard"
-              className="px-4 py-2 rounded-lg text-sm transition-all"
-              style={{ color: isActive('/dashboard') ? '#3B82F6' : '#94A3B8', background: isActive('/dashboard') ? 'rgba(59,130,246,0.1)' : 'transparent' }}
-            >
-              My Bookings
-            </Link>
-            <Link
-              to="/admin"
-              className="px-4 py-2 rounded-lg text-sm transition-all"
-              style={{ color: isActive('/admin') ? '#3B82F6' : '#94A3B8', background: isActive('/admin') ? 'rgba(59,130,246,0.1)' : 'transparent' }}
-            >
-              Admin
-            </Link>
+            {navLink("/workspaces", "Browse Spaces")}
+            {user && navLink("/dashboard", "My Bookings")}
+            {isAdmin && navLink("/admin", "Admin")}
           </div>
 
-          {/* Desktop Auth Buttons */}
+          {/* Desktop Auth */}
           <div className="hidden md:flex items-center gap-3">
-            <Link to="/login">
-              <Button variant="ghost" className="text-muted-foreground hover:text-white">
-                <User className="h-4 w-4 mr-2" />
-                Sign In
-              </Button>
-            </Link>
-            <Link to="/login">
-              <Button className="gap-2" style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', border: 'none' }}>
-                <Zap className="h-4 w-4" />
-                Get Started
-              </Button>
-            </Link>
+            {loading ? null : user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors outline-none hover:bg-white/5">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={profile?.avatar_url ?? undefined} />
+                      <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm text-white max-w-[140px] truncate">{displayName}</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium truncate">{profile?.name ?? "Signed in"}</span>
+                      <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                    <LayoutDashboard className="h-4 w-4 mr-2" /> My Bookings
+                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem onClick={() => navigate("/admin")}>
+                      <Building2 className="h-4 w-4 mr-2" /> Admin
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-600">
+                    <LogOut className="h-4 w-4 mr-2" /> Log Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Link to="/login">
+                <Button variant="ghost" className="text-muted-foreground hover:text-white">
+                  <User className="h-4 w-4 mr-2" />
+                  Sign In
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu */}
@@ -77,26 +117,44 @@ export function Navbar() {
             </SheetTrigger>
             <SheetContent className="border-border" style={{ background: '#1E293B' }}>
               <div className="flex flex-col gap-4 mt-8">
+                {user && (
+                  <div className="flex items-center gap-3 pb-4 border-b border-border">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={profile?.avatar_url ?? undefined} />
+                      <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{profile?.name ?? "Account"}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                  </div>
+                )}
                 <Link to="/workspaces" className="text-lg text-foreground hover:text-primary transition-colors">
                   Browse Spaces
                 </Link>
-                <Link to="/dashboard" className="text-lg text-foreground hover:text-primary transition-colors">
-                  My Bookings
-                </Link>
-                <Link to="/admin" className="text-lg text-foreground hover:text-primary transition-colors">
-                  Admin
-                </Link>
+                {user && (
+                  <Link to="/dashboard" className="text-lg text-foreground hover:text-primary transition-colors">
+                    My Bookings
+                  </Link>
+                )}
+                {isAdmin && (
+                  <Link to="/admin" className="text-lg text-foreground hover:text-primary transition-colors">
+                    Admin
+                  </Link>
+                )}
                 <div className="flex flex-col gap-2 mt-4">
-                  <Link to="/login">
-                    <Button variant="outline" className="w-full">
-                      Sign In
+                  {user ? (
+                    <Button variant="outline" className="w-full" onClick={handleSignOut}>
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Log Out
                     </Button>
-                  </Link>
-                  <Link to="/login">
-                    <Button className="w-full" style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}>
-                      Get Started
-                    </Button>
-                  </Link>
+                  ) : (
+                    <Link to="/login">
+                      <Button variant="outline" className="w-full">
+                        Sign In
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </div>
             </SheetContent>
