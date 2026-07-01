@@ -32,6 +32,7 @@ import {
   Trash2
 } from "lucide-react";
 import { useAdminData } from "../../hooks/useAdminData";
+import { AddWorkspaceDialog } from "../components/AddWorkspaceDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,7 +58,9 @@ const TYPE_LABELS: Record<string, string> = {
 
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
-  const { workspaces, bookings, profiles, loading } = useAdminData();
+  const [bookingFilter, setBookingFilter] = useState<"all" | "upcoming" | "completed">("all");
+  const { workspaces, bookings, profiles, loading, createWorkspace } = useAdminData();
+  const filteredBookings = bookingFilter === "all" ? bookings : bookings.filter(b => b.status === bookingFilter);
 
   const stats = useMemo(() => {
     const activeUserIds = new Set(bookings.map(b => b.user_id));
@@ -314,10 +317,7 @@ export function AdminDashboard() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Workspace Management</CardTitle>
-                    <Button>
-                      <Building2 className="h-4 w-4 mr-2" />
-                      Add Workspace
-                    </Button>
+                    <AddWorkspaceDialog onCreate={createWorkspace} />
                   </CardHeader>
                   <CardContent>
                     <Table>
@@ -390,7 +390,7 @@ export function AdminDashboard() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Booking Management</CardTitle>
-                    <Tabs defaultValue="all">
+                    <Tabs value={bookingFilter} onValueChange={v => setBookingFilter(v as typeof bookingFilter)}>
                       <TabsList>
                         <TabsTrigger value="all">All</TabsTrigger>
                         <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
@@ -414,10 +414,10 @@ export function AdminDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {bookings.length === 0 && !loading && (
-                          <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No bookings yet</TableCell></TableRow>
+                        {filteredBookings.length === 0 && !loading && (
+                          <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No bookings</TableCell></TableRow>
                         )}
-                        {bookings.map((booking) => (
+                        {filteredBookings.map((booking) => (
                           <TableRow key={booking.id}>
                             <TableCell className="font-medium">{booking.id.slice(0, 8)}</TableCell>
                             <TableCell>{booking.workspace?.name ?? "—"}</TableCell>

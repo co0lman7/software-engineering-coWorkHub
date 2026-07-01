@@ -11,6 +11,12 @@ export type AdminBooking = {
   user: Pick<Profile, "name" | "email"> | null;
 };
 
+export type NewWorkspace = {
+  name: string; location: string; description: string;
+  price_per_day: number; capacity: number; type: Workspace["type"];
+  image: string; images: string[]; amenities: string[]; available: boolean;
+};
+
 export function useAdminData() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [bookings, setBookings]     = useState<AdminBooking[]>([]);
@@ -32,5 +38,11 @@ export function useAdminData() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  return { workspaces, bookings, profiles, loading, refresh };
+  const createWorkspace = async (w: NewWorkspace) => {
+    const { error } = await supabase.from("workspaces").insert(w);
+    if (!error) await refresh();
+    return { error: error?.message ?? null };
+  };
+
+  return { workspaces, bookings, profiles, loading, refresh, createWorkspace };
 }

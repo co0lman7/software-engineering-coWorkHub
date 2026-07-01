@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { mockWorkspaces } from "../data/mockData";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { useLocationSuggestions } from "../../hooks/useLocationSuggestions";
 
 const HERO_BG = "https://images.unsplash.com/photo-1497366412874-3415097a27e7?w=1920&h=1080&fit=crop&auto=format";
 const CITY_IMG = "https://images.unsplash.com/photo-1762429648253-b8bc921c8b30?w=800&h=600&fit=crop&auto=format";
@@ -21,12 +22,21 @@ export function Landing() {
   const navigate = useNavigate();
   const [location, setLocation] = useState("");
   const [date, setDate] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const { suggestions, loading: suggestionsLoading } = useLocationSuggestions(location);
 
   const featuredWorkspaces = mockWorkspaces.slice(0, 3);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/workspaces");
+    const params = new URLSearchParams();
+    if (location.trim()) params.set("location", location.trim());
+    navigate(params.toString() ? `/workspaces?${params.toString()}` : "/workspaces");
+  };
+
+  const selectSuggestion = (label: string) => {
+    setLocation(label);
+    setShowSuggestions(false);
   };
 
   return (
@@ -67,15 +77,38 @@ export function Landing() {
 
             {/* Search Bar */}
             <form onSubmit={handleSearch} className="rounded-2xl p-2 flex flex-col md:flex-row gap-2 mb-8" style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(148,163,184,0.15)', backdropFilter: 'blur(20px)' }}>
-              <div className="flex-1 flex items-center gap-3 px-4 py-2">
+              <div className="flex-1 flex items-center gap-3 px-4 py-2 relative">
                 <MapPin className="h-5 w-5 flex-shrink-0" style={{ color: '#3B82F6' }} />
                 <Input
                   type="text"
                   placeholder="City, neighborhood, or address"
                   value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  onChange={(e) => { setLocation(e.target.value); setShowSuggestions(true); }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  autoComplete="off"
                   className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-white placeholder:text-muted-foreground"
                 />
+                {showSuggestions && location.trim().length >= 2 && (suggestionsLoading || suggestions.length > 0) && (
+                  <div
+                    className="absolute left-0 right-0 top-full mt-2 rounded-xl overflow-hidden z-20 shadow-xl"
+                    style={{ background: '#1E293B', border: '1px solid rgba(148,163,184,0.15)' }}
+                  >
+                    {suggestionsLoading && <div className="px-4 py-3 text-sm" style={{ color: '#94A3B8' }}>Searching…</div>}
+                    {!suggestionsLoading && suggestions.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => selectSuggestion(s.value)}
+                        className="w-full text-left px-4 py-2.5 text-sm text-white hover:bg-white/5 flex items-center gap-2"
+                      >
+                        <MapPin className="h-3.5 w-3.5 flex-shrink-0" style={{ color: '#3B82F6' }} />
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="hidden md:block w-px my-2" style={{ background: 'rgba(148,163,184,0.2)' }} />
               <div className="flex-1 flex items-center gap-3 px-4 py-2">

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { WorkspaceCard } from "../components/WorkspaceCard";
@@ -10,7 +10,8 @@ import { useWorkspaces } from "../../hooks/useWorkspaces";
 import type { Workspace } from "../../lib/database.types";
 
 export function WorkspaceListing() {
-  const [search, setSearch]         = useState("");
+  const [searchParams]              = useSearchParams();
+  const [search, setSearch]         = useState(() => searchParams.get("location") ?? "");
   const [typeFilter, setTypeFilter] = useState<Workspace["type"] | "all">("all");
   const { workspaces, loading }     = useWorkspaces(typeFilter !== "all" ? { type: typeFilter } : {});
   const filtered = workspaces.filter(w => w.name.toLowerCase().includes(search.toLowerCase()) || w.location.toLowerCase().includes(search.toLowerCase()));

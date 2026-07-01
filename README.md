@@ -4,7 +4,7 @@ A modern coworking space booking web application
 ---
 
 ## Overview
-CoWorkHub allows users to discover, explore, and book coworking spaces. It features workspace browsing with filters, detailed workspace pages, a full booking flow with pricing calculation, a user dashboard to manage bookings, and an admin dashboard for managing workspaces.
+CoWorkHub allows users to discover, explore, and book coworking spaces. It features workspace browsing with filters and a real-world location autocomplete search, detailed workspace pages, a full booking flow with pricing calculation, a user dashboard to manage bookings, and an admin dashboard backed by live Supabase statistics for managing workspaces, bookings, and users.
 
 ---
 
@@ -28,24 +28,28 @@ CoWorkHub allows users to discover, explore, and book coworking spaces. It featu
 CoWorkHub/
 ├── src/
 │   ├── app/
-│   │   ├── components/         # Reusable UI components
-│   │   │   └── ProtectedRoute.tsx
-│   │   ├── pages/              # Route pages
+│   │   ├── components/          # Reusable UI components
+│   │   │   ├── AddWorkspaceDialog.tsx  # Admin "create workspace" form dialog
+│   │   │   ├── ProtectedRoute.tsx
+│   │   │   └── ui/               # shadcn/ui + Radix primitives
+│   │   ├── pages/               # Route pages
 │   │   ├── App.tsx
 │   │   └── routes.tsx
 │   ├── hooks/
-│   │   ├── useAuth.tsx         # Auth context & helpers
-│   │   ├── useBookings.ts      # Booking CRUD
-│   │   └── useWorkspaces.ts    # Workspace queries
+│   │   ├── useAdminData.ts      # Admin stats/bookings/users + workspace creation
+│   │   ├── useAuth.tsx          # Auth context & helpers
+│   │   ├── useBookings.ts       # Booking CRUD
+│   │   ├── useLocationSuggestions.ts  # Debounced location autocomplete (Photon API)
+│   │   └── useWorkspaces.ts     # Workspace queries
 │   ├── lib/
-│   │   ├── supabase.ts         # Supabase client
-│   │   └── database.types.ts  # TypeScript types
-│   ├── styles/                 # Global CSS & theme
-│   └── main.tsx                # App entry point
+│   │   ├── supabase.ts          # Supabase client
+│   │   └── database.types.ts   # TypeScript types
+│   ├── styles/                  # Global CSS & theme
+│   └── main.tsx                 # App entry point
 ├── supabase/
-│   └── schema.sql              # Database schema + seed data
-├── .env                        # Environment variables (not committed)
-├── .env.example                # Example env file
+│   └── schema.sql               # Database schema + seed data (canonical, kept in sync with migrations)
+├── .env                         # Environment variables (not committed)
+├── .env.example                 # Example env file
 ├── index.html
 └── vite.config.ts
 ```
@@ -68,11 +72,13 @@ CoWorkHub/
 ## Database Schema (Supabase)
 | Table | Description |
 |-------|-------------|
-| `profiles` | Extends auth.users — stores name, avatar, role (`user` / `admin`) |
+| `profiles` | Extends auth.users — stores name, email, avatar, role (`user` / `admin`) |
 | `workspaces` | Coworking spaces — publicly readable, admin-writable |
-| `bookings` | Per-user bookings joined to workspaces — RLS enforced |
+| `bookings` | Per-user bookings joined to workspaces (supports multi-day date ranges via `date`/`end_date`) — RLS enforced |
 
-Row Level Security is enabled on all tables.
+Row Level Security is enabled on all tables. Admin access is granted through a `public.is_admin()` `SECURITY DEFINER` helper function (checked in the `admin read all profiles`, `admin read all bookings`, and `admin manage workspaces` policies) rather than inline subqueries, which avoids infinite-recursion errors that occur when a policy on `profiles` queries `profiles` from within itself. A `prevent_role_escalation` trigger blocks users from granting themselves the `admin` role through the app — role changes must be made by an existing admin.
+
+`supabase/schema.sql` is the canonical, up-to-date schema; the `migration_*.sql` files in the same folder are the incremental migrations that produced it and are kept for history.
 
 ---
 
@@ -114,18 +120,21 @@ npm run dev
 
 ### User Features
 - Browse and search coworking spaces
+- Homepage hero search with real-world location autocomplete (powered by the free [Photon](https://photon.komoot.io) geocoding API) — pick a suggestion or search freeform, and results are filtered on `/workspaces`
 - Filter by type: desk, meeting room, private office, coworking
 - View workspace details, images, amenities, and ratings
-- Book a workspace with date, time slot, and seat selection
+- Book a workspace with date range (multi-day), time slot, and seat selection
 - Pricing calculation with service fee
 - User dashboard to view upcoming and past bookings
 - Cancel bookings
 
 ### Admin Features
-- Admin dashboard with booking statistics
-- Revenue overview and occupancy metrics
+- Admin dashboard driven by live data: total bookings, revenue, active users, and workspace counts (with month-over-month deltas), booking trend, and workspace-type breakdown
+- Bookings tab with All / Upcoming / Completed filters
+- Users tab listing real user records (avatar, name, email, role, booking count, join date)
+- "Add Workspace" dialog to create a new listing (name, location, description, price/day, capacity, type, image, amenities, availability) directly from the dashboard
 - Manage workspace listings
-- Promote users to admin via Supabase Table Editor (`profiles` → set `role` to `admin`)
+- Promote users to admin via Supabase Table Editor or SQL Editor (`profiles` → set `role` to `admin`)
 
 ---
 
