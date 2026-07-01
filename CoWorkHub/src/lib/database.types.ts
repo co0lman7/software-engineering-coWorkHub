@@ -1,5 +1,5 @@
 export type Profile = {
-  id: string; name: string; avatar_url: string | null;
+  id: string; name: string; email: string | null; avatar_url: string | null;
   role: "user" | "admin"; created_at: string;
 };
 export type Workspace = {

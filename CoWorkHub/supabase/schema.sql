@@ -2,21 +2,41 @@
 create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   name        text not null default '',
+  email       text,
   avatar_url  text,
   role        text not null default 'user' check (role in ('user','admin')),
   created_at  timestamptz not null default now()
 );
 alter table public.profiles enable row level security;
+
+-- security definer bypasses RLS internally, so admin-check policies (on this
+-- table or others) don't recursively re-trigger profiles' own RLS policies.
+create or replace function public.is_admin() returns boolean language sql security definer stable set search_path = public as $$
+  select exists (select 1 from public.profiles where id = auth.uid() and role = 'admin');
+$$;
+
 create policy "own profile select" on public.profiles for select using (auth.uid() = id);
+create policy "admin read all profiles" on public.profiles for select using (public.is_admin());
 create policy "own profile update" on public.profiles for update using (auth.uid() = id);
 
 create or replace function public.handle_new_user() returns trigger language plpgsql security definer as $$
 begin
-  insert into public.profiles (id, name) values (new.id, coalesce(new.raw_user_meta_data->>'name', split_part(new.email,'@',1)));
+  insert into public.profiles (id, name, email) values (new.id, coalesce(new.raw_user_meta_data->>'name', split_part(new.email,'@',1)), new.email);
   return new;
 end; $$;
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users for each row execute procedure public.handle_new_user();
+
+-- Prevent non-admins from granting themselves the admin role via a profile update.
+create or replace function public.prevent_role_escalation() returns trigger language plpgsql security definer as $$
+begin
+  if new.role is distinct from old.role and auth.uid() is not null and not public.is_admin() then
+    new.role := old.role;
+  end if;
+  return new;
+end; $$;
+drop trigger if exists prevent_role_escalation on public.profiles;
+create trigger prevent_role_escalation before update on public.profiles for each row execute procedure public.prevent_role_escalation();
 
 create table if not exists public.workspaces (
   id uuid primary key default gen_random_uuid(), name text not null, location text not null,
@@ -29,7 +49,7 @@ create table if not exists public.workspaces (
 );
 alter table public.workspaces enable row level security;
 create policy "workspaces public read" on public.workspaces for select using (true);
-create policy "admin manage workspaces" on public.workspaces for all using (exists (select 1 from public.profiles where id=auth.uid() and role='admin'));
+create policy "admin manage workspaces" on public.workspaces for all using (public.is_admin());
 
 create table if not exists public.bookings (
   id uuid primary key default gen_random_uuid(), user_id uuid not null references public.profiles(id) on delete cascade,
@@ -41,6 +61,7 @@ create table if not exists public.bookings (
 );
 alter table public.bookings enable row level security;
 create policy "own bookings select" on public.bookings for select using (auth.uid()=user_id);
+create policy "admin read all bookings" on public.bookings for select using (public.is_admin());
 create policy "own bookings insert" on public.bookings for insert with check (auth.uid()=user_id);
 create policy "own bookings update" on public.bookings for update using (auth.uid()=user_id);
 

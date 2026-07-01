@@ -1,36 +1,37 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Navbar } from "../components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { 
-  BarChart, 
-  Bar, 
-  LineChart, 
-  Line, 
-  PieChart, 
-  Pie, 
-  Cell, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer 
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
 } from "recharts";
-import { 
-  Users, 
-  Building2, 
-  DollarSign, 
+import {
+  Users,
+  Building2,
+  DollarSign,
   Calendar,
   TrendingUp,
   MoreVertical,
   Edit,
   Trash2
 } from "lucide-react";
-import { adminStats, mockWorkspaces, mockBookings } from "../data/mockData";
+import { useAdminData } from "../../hooks/useAdminData";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,9 +50,68 @@ import {
 } from "../components/ui/sidebar";
 
 const COLORS = ['#2563EB', '#10B981', '#F59E0B', '#EF4444'];
+const TYPE_LABELS: Record<string, string> = {
+  coworking: "Coworking", "meeting-room": "Meeting Rooms",
+  "private-office": "Private Offices", desk: "Desks",
+};
 
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
+  const { workspaces, bookings, profiles, loading } = useAdminData();
+
+  const stats = useMemo(() => {
+    const activeUserIds = new Set(bookings.map(b => b.user_id));
+    const revenue = bookings
+      .filter(b => b.status !== "cancelled")
+      .reduce((sum, b) => sum + Number(b.total_price), 0);
+
+    const now = new Date();
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      return { year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString("en-US", { month: "short" }) };
+    });
+    const bookingTrend = months.map(({ year, month, label }) => ({
+      month: label,
+      bookings: bookings.filter(b => { const bd = new Date(b.date); return bd.getFullYear() === year && bd.getMonth() === month; }).length,
+      revenue: bookings.filter(b => { const bd = new Date(b.date); return bd.getFullYear() === year && bd.getMonth() === month && b.status !== "cancelled"; })
+        .reduce((sum, b) => sum + Number(b.total_price), 0),
+    }));
+
+    const typeCounts = workspaces.reduce<Record<string, number>>((acc, w) => { acc[w.type] = (acc[w.type] ?? 0) + 1; return acc; }, {});
+    const workspaceTypes = Object.entries(typeCounts).map(([type, value]) => ({ name: TYPE_LABELS[type] ?? type, value }));
+
+    const pctChange = (curr: number, prev: number) => prev === 0 ? null : ((curr - prev) / prev) * 100;
+    const bookingsDelta = pctChange(bookingTrend[5].bookings, bookingTrend[4].bookings);
+    const revenueDelta  = pctChange(bookingTrend[5].revenue,  bookingTrend[4].revenue);
+
+    const newWorkspacesThisMonth = workspaces.filter(w => {
+      const c = new Date(w.created_at);
+      return c.getFullYear() === now.getFullYear() && c.getMonth() === now.getMonth();
+    }).length;
+    const newUsersThisMonth = profiles.filter(p => {
+      const c = new Date(p.created_at);
+      return c.getFullYear() === now.getFullYear() && c.getMonth() === now.getMonth();
+    }).length;
+
+    const bookingCountByUser = bookings.reduce<Record<string, number>>((acc, b) => { acc[b.user_id] = (acc[b.user_id] ?? 0) + 1; return acc; }, {});
+
+    return {
+      totalBookings: bookings.length,
+      totalWorkspaces: workspaces.length,
+      totalUsers: profiles.length,
+      activeUsers: activeUserIds.size,
+      revenue,
+      bookingTrend,
+      workspaceTypes,
+      bookingsDelta,
+      revenueDelta,
+      newWorkspacesThisMonth,
+      newUsersThisMonth,
+      bookingCountByUser,
+    };
+  }, [workspaces, bookings, profiles]);
+
+  const fmtDelta = (v: number | null) => v === null ? "so far" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}% from last month`;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -124,9 +184,9 @@ export function AdminDashboard() {
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-3xl font-semibold">{adminStats.totalBookings}</div>
+                        <div className="text-3xl font-semibold">{stats.totalBookings}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          <span className="text-secondary">+12.5%</span> from last month
+                          <span className="text-secondary">{fmtDelta(stats.bookingsDelta)}</span>
                         </p>
                       </CardContent>
                     </Card>
@@ -137,9 +197,9 @@ export function AdminDashboard() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-3xl font-semibold">{adminStats.activeUsers}</div>
+                        <div className="text-3xl font-semibold">{stats.activeUsers}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          <span className="text-secondary">+8.2%</span> from last month
+                          <span className="text-secondary">{stats.totalUsers}</span> total registered
                         </p>
                       </CardContent>
                     </Card>
@@ -150,9 +210,9 @@ export function AdminDashboard() {
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-3xl font-semibold">{adminStats.totalWorkspaces}</div>
+                        <div className="text-3xl font-semibold">{stats.totalWorkspaces}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          <span className="text-secondary">+3</span> new this month
+                          <span className="text-secondary">+{stats.newWorkspacesThisMonth}</span> new this month
                         </p>
                       </CardContent>
                     </Card>
@@ -163,9 +223,9 @@ export function AdminDashboard() {
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-3xl font-semibold">${adminStats.revenue.toLocaleString()}</div>
+                        <div className="text-3xl font-semibold">${stats.revenue.toLocaleString()}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          <span className="text-secondary">+15.3%</span> from last month
+                          <span className="text-secondary">{fmtDelta(stats.revenueDelta)}</span>
                         </p>
                       </CardContent>
                     </Card>
@@ -179,16 +239,16 @@ export function AdminDashboard() {
                       </CardHeader>
                       <CardContent>
                         <ResponsiveContainer width="100%" height={300}>
-                          <LineChart data={adminStats.bookingTrend}>
+                          <LineChart data={stats.bookingTrend}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="month" />
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Line 
-                              type="monotone" 
-                              dataKey="bookings" 
-                              stroke="#2563EB" 
+                            <Line
+                              type="monotone"
+                              dataKey="bookings"
+                              stroke="#2563EB"
                               strokeWidth={2}
                               name="Bookings"
                             />
@@ -202,25 +262,29 @@ export function AdminDashboard() {
                         <CardTitle>Workspace Types</CardTitle>
                       </CardHeader>
                       <CardContent className="flex justify-center">
-                        <ResponsiveContainer width="100%" height={300}>
-                          <PieChart>
-                            <Pie
-                              data={adminStats.workspaceTypes}
-                              cx="50%"
-                              cy="50%"
-                              labelLine={false}
-                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                              outerRadius={100}
-                              fill="#8884d8"
-                              dataKey="value"
-                            >
-                              {adminStats.workspaceTypes.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip />
-                          </PieChart>
-                        </ResponsiveContainer>
+                        {stats.workspaceTypes.length === 0 ? (
+                          <div className="h-[300px] flex items-center justify-center text-muted-foreground text-sm">No workspaces yet</div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                              <Pie
+                                data={stats.workspaceTypes}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                outerRadius={100}
+                                fill="#8884d8"
+                                dataKey="value"
+                              >
+                                {stats.workspaceTypes.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        )}
                       </CardContent>
                     </Card>
                   </div>
@@ -232,7 +296,7 @@ export function AdminDashboard() {
                     </CardHeader>
                     <CardContent>
                       <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={adminStats.bookingTrend}>
+                        <BarChart data={stats.bookingTrend}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="month" />
                           <YAxis />
@@ -270,7 +334,10 @@ export function AdminDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {mockWorkspaces.map((workspace) => (
+                        {workspaces.length === 0 && !loading && (
+                          <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No workspaces yet</TableCell></TableRow>
+                        )}
+                        {workspaces.map((workspace) => (
                           <TableRow key={workspace.id}>
                             <TableCell className="font-medium">{workspace.name}</TableCell>
                             <TableCell>{workspace.location}</TableCell>
@@ -278,7 +345,7 @@ export function AdminDashboard() {
                               {workspace.type.replace('-', ' ')}
                             </TableCell>
                             <TableCell>{workspace.capacity}</TableCell>
-                            <TableCell>${workspace.pricePerDay}</TableCell>
+                            <TableCell>${workspace.price_per_day}</TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">
                                 <span>{workspace.rating}</span>
@@ -337,6 +404,7 @@ export function AdminDashboard() {
                         <TableRow>
                           <TableHead>Booking ID</TableHead>
                           <TableHead>Workspace</TableHead>
+                          <TableHead>Customer</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead>Time</TableHead>
                           <TableHead>Seats</TableHead>
@@ -346,14 +414,21 @@ export function AdminDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {mockBookings.map((booking) => (
+                        {bookings.length === 0 && !loading && (
+                          <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No bookings yet</TableCell></TableRow>
+                        )}
+                        {bookings.map((booking) => (
                           <TableRow key={booking.id}>
-                            <TableCell className="font-medium">{booking.id}</TableCell>
-                            <TableCell>{booking.workspaceName}</TableCell>
-                            <TableCell>{new Date(booking.date).toLocaleDateString()}</TableCell>
-                            <TableCell>{booking.startTime} - {booking.endTime}</TableCell>
+                            <TableCell className="font-medium">{booking.id.slice(0, 8)}</TableCell>
+                            <TableCell>{booking.workspace?.name ?? "—"}</TableCell>
+                            <TableCell>{booking.user?.name || booking.user?.email || "—"}</TableCell>
+                            <TableCell>
+                              {new Date(booking.date).toLocaleDateString()}
+                              {booking.end_date && booking.end_date !== booking.date && ` – ${new Date(booking.end_date).toLocaleDateString()}`}
+                            </TableCell>
+                            <TableCell>{booking.start_time} - {booking.end_time}</TableCell>
                             <TableCell>{booking.seats}</TableCell>
-                            <TableCell>${booking.totalPrice}</TableCell>
+                            <TableCell>${booking.total_price}</TableCell>
                             <TableCell>
                               <Badge variant={
                                 booking.status === 'upcoming' ? 'default' :
@@ -393,14 +468,48 @@ export function AdminDashboard() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>User Management</CardTitle>
-                    <Button variant="outline">Export Users</Button>
+                    <Badge variant="outline">{stats.totalUsers} total</Badge>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Users className="h-12 w-12 mx-auto mb-4" />
-                      <p>User management interface</p>
-                      <p className="text-sm">View and manage platform users</p>
-                    </div>
+                    {profiles.length === 0 && !loading ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Users className="h-12 w-12 mx-auto mb-4" />
+                        <p>No users yet</p>
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>User</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead>Bookings</TableHead>
+                            <TableHead>Joined</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {profiles.map((p) => (
+                            <TableRow key={p.id}>
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-7 w-7">
+                                    <AvatarImage src={p.avatar_url ?? undefined} />
+                                    <AvatarFallback>{p.name?.charAt(0)?.toUpperCase() ?? "?"}</AvatarFallback>
+                                  </Avatar>
+                                  {p.name || "—"}
+                                </div>
+                              </TableCell>
+                              <TableCell>{p.email ?? "—"}</TableCell>
+                              <TableCell>
+                                <Badge variant={p.role === "admin" ? "default" : "secondary"} className="capitalize">{p.role}</Badge>
+                              </TableCell>
+                              <TableCell>{stats.bookingCountByUser[p.id] ?? 0}</TableCell>
+                              <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
                   </CardContent>
                 </Card>
               )}
