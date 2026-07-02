@@ -64,6 +64,7 @@ create policy "own bookings select" on public.bookings for select using (auth.ui
 create policy "admin read all bookings" on public.bookings for select using (public.is_admin());
 create policy "own bookings insert" on public.bookings for insert with check (auth.uid()=user_id);
 create policy "own bookings update" on public.bookings for update using (auth.uid()=user_id);
+create policy "admin update bookings" on public.bookings for update using (public.is_admin());
 
 insert into public.workspaces (name,location,description,price_per_day,capacity,rating,reviews,type,image,images,amenities) values
 ('Downtown Tech Hub','San Francisco, CA','Modern coworking space in the heart of downtown.',45,50,4.8,127,'coworking','https://images.unsplash.com/photo-1527192491265-7e15c55b1ed2?w=1080',ARRAY['https://images.unsplash.com/photo-1527192491265-7e15c55b1ed2?w=1080'],ARRAY['High-Speed WiFi','Coffee & Tea','Phone Booths','24/7 Access']),

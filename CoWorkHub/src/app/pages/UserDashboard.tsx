@@ -7,7 +7,7 @@ import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
-import { Calendar, Clock, MapPin, XCircle } from "lucide-react";
+import { Calendar, Clock, History as HistoryIcon, ListChecks, MapPin, XCircle } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../components/ui/alert-dialog";
 import { toast } from "sonner";
@@ -22,6 +22,10 @@ export function UserDashboard() {
   const upcoming = bookings.filter(b => b.status === "upcoming");
   const history  = bookings.filter(b => b.status !== "upcoming");
   const filteredHistory = historyFilter === "all" ? history : history.filter(b => b.status === historyFilter);
+  const completedCount = bookings.filter(b => b.status === "completed").length;
+  const cancelledCount = bookings.filter(b => b.status === "cancelled").length;
+  const totalSpent = bookings.filter(b => b.status !== "cancelled").reduce((sum, b) => sum + b.total_price, 0);
+  const nextUpcoming = upcoming.reduce<BookingWithWorkspace | null>((soonest, b) => !soonest || b.date < soonest.date ? b : soonest, null);
 
   const handleCancel = async (id: string) => {
     const { error } = await cancelBooking(id);
@@ -83,10 +87,39 @@ export function UserDashboard() {
           </Avatar>
           <div><h1 className="text-2xl font-bold">{profile?.name ?? "My Dashboard"}</h1><p className="text-muted-foreground">{user?.email}</p></div>
         </div>
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          {[["Total",bookings.length],["Upcoming",upcoming.length],["History",history.length]].map(([l,v]) => (
-            <Card key={l as string}><CardHeader className="pb-1 pt-4 px-4"><p className="text-sm text-muted-foreground">{l}</p></CardHeader><CardContent className="px-4 pb-4"><p className="text-3xl font-bold">{v}</p></CardContent></Card>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <Card className="gap-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-1 pt-4 px-4">
+              <CardTitle className="text-sm">Total Bookings</CardTitle>
+              <ListChecks className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="text-3xl font-semibold">{bookings.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">${totalSpent.toLocaleString()} total spent</p>
+            </CardContent>
+          </Card>
+          <Card className="gap-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-1 pt-4 px-4">
+              <CardTitle className="text-sm">Upcoming</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="text-3xl font-semibold">{upcoming.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {nextUpcoming ? `Next: ${new Date(nextUpcoming.date).toLocaleDateString("en-US",{month:"short",day:"numeric"})}` : "None scheduled"}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="gap-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-1 pt-4 px-4">
+              <CardTitle className="text-sm">History</CardTitle>
+              <HistoryIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="text-3xl font-semibold">{history.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">{completedCount} completed · {cancelledCount} cancelled</p>
+            </CardContent>
+          </Card>
         </div>
         <Tabs defaultValue="upcoming">
           <TabsList className="mb-4">
