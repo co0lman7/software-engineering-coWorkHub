@@ -44,5 +44,26 @@ export function useAdminData() {
     return { error: error?.message ?? null };
   };
 
-  return { workspaces, bookings, profiles, loading, refresh, createWorkspace };
+  const updateWorkspace = async (id: string, updates: Partial<NewWorkspace>) => {
+    const { error } = await supabase.from("workspaces").update(updates).eq("id", id);
+    if (!error) await refresh();
+    return { error: error?.message ?? null };
+  };
+
+  const deleteWorkspace = async (id: string) => {
+    const { error } = await supabase.from("workspaces").delete().eq("id", id);
+    if (!error) await refresh();
+    return { error: error?.message ?? null };
+  };
+
+  const updateBookingStatus = async (id: string, status: AdminBooking["status"]) => {
+    const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
+    if (!error) await refresh();
+    return { error: error?.message ?? null };
+  };
+
+  return {
+    workspaces, bookings, profiles, loading, refresh,
+    createWorkspace, updateWorkspace, deleteWorkspace, updateBookingStatus,
+  };
 }

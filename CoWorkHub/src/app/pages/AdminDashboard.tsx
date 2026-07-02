@@ -32,13 +32,35 @@ import {
   Trash2
 } from "lucide-react";
 import { useAdminData } from "../../hooks/useAdminData";
+import type { AdminBooking } from "../../hooks/useAdminData";
+import type { Workspace } from "../../lib/database.types";
 import { AddWorkspaceDialog } from "../components/AddWorkspaceDialog";
+import { EditWorkspaceDialog } from "../components/EditWorkspaceDialog";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "../components/ui/dialog";
 import {
   SidebarProvider,
   Sidebar,
@@ -59,8 +81,35 @@ const TYPE_LABELS: Record<string, string> = {
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [bookingFilter, setBookingFilter] = useState<"all" | "upcoming" | "completed">("all");
-  const { workspaces, bookings, profiles, loading, createWorkspace } = useAdminData();
+  const {
+    workspaces, bookings, profiles, loading,
+    createWorkspace, updateWorkspace, deleteWorkspace, updateBookingStatus,
+  } = useAdminData();
   const filteredBookings = bookingFilter === "all" ? bookings : bookings.filter(b => b.status === bookingFilter);
+
+  const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
+  const [viewingBooking, setViewingBooking] = useState<AdminBooking | null>(null);
+
+  const handleDeleteWorkspace = async (workspace: Workspace) => {
+    const { error } = await deleteWorkspace(workspace.id);
+    if (error) toast.error("Failed to delete workspace", { description: error });
+    else toast.success("Workspace deleted");
+  };
+
+  const handleCancelBooking = async (booking: AdminBooking) => {
+    const { error } = await updateBookingStatus(booking.id, "cancelled");
+    if (error) toast.error("Failed to cancel booking", { description: error });
+    else toast.success("Booking cancelled");
+  };
+
+  const handleContactUser = (booking: AdminBooking) => {
+    if (!booking.user?.email) {
+      toast.error("No email on file for this user");
+      return;
+    }
+    const subject = encodeURIComponent(`Regarding your booking at ${booking.workspace?.name ?? "CoWorkHub"}`);
+    window.location.href = `mailto:${booking.user.email}?subject=${subject}`;
+  };
 
   const stats = useMemo(() => {
     const activeUserIds = new Set(bookings.map(b => b.user_id));
@@ -360,23 +409,44 @@ export function AdminDashboard() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem>
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Edit
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-destructive">
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <AlertDialog>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => setEditingWorkspace(workspace)}>
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </DropdownMenuItem>
+                                    <AlertDialogTrigger asChild>
+                                      <DropdownMenuItem
+                                        className="text-destructive"
+                                        onSelect={(e) => e.preventDefault()}
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete workspace?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will permanently remove "{workspace.name}". This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteWorkspace(workspace)}>
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -439,22 +509,47 @@ export function AdminDashboard() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem>View Details</DropdownMenuItem>
-                                  <DropdownMenuItem>Contact User</DropdownMenuItem>
-                                  {booking.status === 'upcoming' && (
-                                    <DropdownMenuItem className="text-destructive">
-                                      Cancel Booking
+                              <AlertDialog>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => setViewingBooking(booking)}>
+                                      View Details
                                     </DropdownMenuItem>
-                                  )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                                    <DropdownMenuItem onClick={() => handleContactUser(booking)}>
+                                      Contact User
+                                    </DropdownMenuItem>
+                                    {booking.status === 'upcoming' && (
+                                      <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem
+                                          className="text-destructive"
+                                          onSelect={(e) => e.preventDefault()}
+                                        >
+                                          Cancel Booking
+                                        </DropdownMenuItem>
+                                      </AlertDialogTrigger>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will mark the booking as cancelled. This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Back</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleCancelBooking(booking)}>
+                                      Cancel Booking
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -517,6 +612,37 @@ export function AdminDashboard() {
           </SidebarInset>
         </div>
       </SidebarProvider>
+
+      <EditWorkspaceDialog
+        workspace={editingWorkspace}
+        open={!!editingWorkspace}
+        onOpenChange={(o) => !o && setEditingWorkspace(null)}
+        onSave={updateWorkspace}
+      />
+
+      <Dialog open={!!viewingBooking} onOpenChange={(o) => !o && setViewingBooking(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Booking Details</DialogTitle>
+            <DialogDescription>{viewingBooking?.id}</DialogDescription>
+          </DialogHeader>
+          {viewingBooking && (
+            <div className="space-y-2 text-sm">
+              <div><span className="text-muted-foreground">Workspace:</span> {viewingBooking.workspace?.name ?? "—"}</div>
+              <div><span className="text-muted-foreground">Customer:</span> {viewingBooking.user?.name || viewingBooking.user?.email || "—"}</div>
+              <div><span className="text-muted-foreground">Email:</span> {viewingBooking.user?.email ?? "—"}</div>
+              <div>
+                <span className="text-muted-foreground">Date:</span> {new Date(viewingBooking.date).toLocaleDateString()}
+                {viewingBooking.end_date && viewingBooking.end_date !== viewingBooking.date && ` – ${new Date(viewingBooking.end_date).toLocaleDateString()}`}
+              </div>
+              <div><span className="text-muted-foreground">Time:</span> {viewingBooking.start_time} - {viewingBooking.end_time}</div>
+              <div><span className="text-muted-foreground">Seats:</span> {viewingBooking.seats}</div>
+              <div><span className="text-muted-foreground">Total:</span> ${viewingBooking.total_price}</div>
+              <div><span className="text-muted-foreground">Status:</span> {viewingBooking.status}</div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
