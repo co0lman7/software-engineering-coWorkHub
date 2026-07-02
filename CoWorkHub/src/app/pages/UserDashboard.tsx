@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Calendar, Clock, MapPin, XCircle } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
@@ -16,8 +18,10 @@ import type { BookingWithWorkspace } from "../../lib/database.types";
 export function UserDashboard() {
   const { user, profile } = useAuth();
   const { bookings, loading, cancelBooking } = useBookings();
-  const upcoming  = bookings.filter(b => b.status === "upcoming");
-  const completed = bookings.filter(b => b.status === "completed");
+  const [historyFilter, setHistoryFilter] = useState<"all" | "completed" | "cancelled">("all");
+  const upcoming = bookings.filter(b => b.status === "upcoming");
+  const history  = bookings.filter(b => b.status !== "upcoming");
+  const filteredHistory = historyFilter === "all" ? history : history.filter(b => b.status === historyFilter);
 
   const handleCancel = async (id: string) => {
     const { error } = await cancelBooking(id);
@@ -80,14 +84,14 @@ export function UserDashboard() {
           <div><h1 className="text-2xl font-bold">{profile?.name ?? "My Dashboard"}</h1><p className="text-muted-foreground">{user?.email}</p></div>
         </div>
         <div className="grid grid-cols-3 gap-4 mb-8">
-          {[["Total",bookings.length],["Upcoming",upcoming.length],["Completed",completed.length]].map(([l,v]) => (
+          {[["Total",bookings.length],["Upcoming",upcoming.length],["History",history.length]].map(([l,v]) => (
             <Card key={l as string}><CardHeader className="pb-1 pt-4 px-4"><p className="text-sm text-muted-foreground">{l}</p></CardHeader><CardContent className="px-4 pb-4"><p className="text-3xl font-bold">{v}</p></CardContent></Card>
           ))}
         </div>
         <Tabs defaultValue="upcoming">
           <TabsList className="mb-4">
             <TabsTrigger value="upcoming">Upcoming ({upcoming.length})</TabsTrigger>
-            <TabsTrigger value="history">History ({completed.length})</TabsTrigger>
+            <TabsTrigger value="history">History ({history.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="upcoming" className="space-y-4">
             {loading && <p className="text-muted-foreground">Loading…</p>}
@@ -95,7 +99,22 @@ export function UserDashboard() {
             {upcoming.map(b => <BookingCard key={b.id} b={b} />)}
           </TabsContent>
           <TabsContent value="history" className="space-y-4">
-            {completed.map(b => <BookingCard key={b.id} b={b} />)}
+            <div className="flex justify-end">
+              <Select value={historyFilter} onValueChange={v => setHistoryFilter(v as typeof historyFilter)}>
+                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {!loading && filteredHistory.length === 0 && (
+              <Card><CardContent className="py-12 text-center text-muted-foreground">
+                No {historyFilter === "all" ? "" : `${historyFilter} `}history yet.
+              </CardContent></Card>
+            )}
+            {filteredHistory.map(b => <BookingCard key={b.id} b={b} />)}
           </TabsContent>
         </Tabs>
       </main>
