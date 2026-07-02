@@ -5,7 +5,6 @@ import { Footer } from "../components/Footer";
 import { WorkspaceCard } from "../components/WorkspaceCard";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Badge } from "../components/ui/badge";
 import {
   Search, MapPin, Calendar, Wifi, Coffee, Shield, Clock,
   Star, Quote, ArrowRight, Users, TrendingUp, Globe, CheckCircle
@@ -60,10 +59,6 @@ export function Landing() {
 
         <div className="relative container mx-auto px-4 py-24">
           <div className="max-w-4xl">
-            <Badge className="mb-6 px-4 py-1.5 text-sm border" style={{ background: 'rgba(59,130,246,0.15)', borderColor: 'rgba(59,130,246,0.4)', color: '#93C5FD' }}>
-              ✦ Trusted by 50,000+ professionals worldwide
-            </Badge>
-
             <h1 className="text-5xl md:text-7xl leading-tight mb-6 text-white" style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
               Work Anywhere,{" "}
               <span style={{ background: 'linear-gradient(135deg, #3B82F6, #10B981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
